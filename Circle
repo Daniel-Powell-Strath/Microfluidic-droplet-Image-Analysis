@@ -1,0 +1,49 @@
+function [centers,radii] = Circle(I)
+    bw = imbinarize(I,'adaptive','Sensitivity',0.85);       %Creates a binary version of the image
+    %bw = 1-bw;                                              %inverts the binary image
+    bw = bwareaopen(bw,300);                                %removes noise
+    se = strel('line',4,60);                                %sets a threshold for removing small lines
+    bw = imerode(bw,se);                                    %removes small lines below threshold
+    
+    %Measures properties of image regions and returns coordinates of
+    %centers and axes lengths
+    stats = regionprops('table', bw,'Centroid','MajorAxisLength','MinorAxisLength','Circularity'); 
+    
+    todelete = stats.MajorAxisLength < 10;                  %removes regions too small to be droplets
+    stats(todelete,:) = [];
+    todelete = stats.MinorAxisLength < 10;                  %removes regions too small to be droplets
+    stats(todelete,:) = [];
+   
+    %Removes all regions that are not circular within the limits of 15%
+    %circularity
+    for i = (height(stats):-1:1)
+        upperlim = stats.MinorAxisLength(i,:) * 1.15;
+        lowerlim = stats.MinorAxisLength(i,:) * 0.85;
+        if stats.MajorAxisLength(i,:) < lowerlim
+           stats(i,:) = [];
+        elseif stats.MajorAxisLength(i,:) > upperlim
+            stats(i,:) = [];
+        end
+    end
+    for i = (height(stats):-1:1)
+        radii = 0.5 * stats.MajorAxisLength;
+        if radii(i) > 22
+           stats(i,:) = [];
+        end
+    end
+    for i = (height(stats):-1:1)
+        if stats.Circularity(i) < 0.93
+           stats(i,:) = [];
+        elseif stats.Circularity(i) > 1.07
+            stats(i,:) = [];
+        end
+    end
+    centers = stats.Centroid;
+    radii = 0.5 * stats.MajorAxisLength;
+%sorts circles by location
+    A= cat(2,centers,radii);
+    A = sortrows(A,2);
+    centers = A(:,1:2);
+    radii = A(:,3);
+    clear A
+end  
