@@ -1,0 +1,63 @@
+meanImageGL = zeros(109,1000);
+timearray = (1:1000);
+
+for time = (1:1:1000)
+    %set image file names
+    D1 = 'D:\Microfluidic Images\240822 6060\Image';
+    D2 = num2str(time);
+    D3 = '.bmp';
+    if time < 10
+        D2 = strcat('000',D2);
+    elseif time <100
+        D2 = strcat('00',D2);
+    elseif time <1000
+        D2 = strcat('0',D2);
+    end
+    D = strcat(D1,D2,D3);
+    
+    % read image
+    I = imread(D);
+    
+    %store old droplet locations
+    if time>1
+        oldC=cat(2,centers,radii);
+    end
+    
+    %find centers and radii of cirlces on new image.
+    [centers,radii] = Circle(I);
+    newC=cat(2,centers,radii);
+    
+    %compare old droplets to new droplets and ensure droplet locations
+    %match based on euclidian distance.
+    if time>1
+        A = oldC;
+        B = newC;
+        sz = (size(A));
+        C = zeros(sz);
+        for i = 1:length(A)
+            for j = 1:length(B)
+                x = pdist2(A(i,1:2),B(j,1:2));
+                if x < 1
+                    C(i,:) = B(j,:);
+                else
+                    C(i,:) = A(i,:);
+                end
+            end   
+        end 
+    end
+    
+    % store new centers and radii of droplets
+    centers = C(:,1:2);
+    radii = C(:,3);
+    L=length(radii);
+    disp(L)
+    
+    % plot droplet locations on image and calculate mean image grey level
+    for i = (1:L) 
+        hfh = images.roi.Circle('Center',centers(i,1:2),'Radius',radii(i,1));
+        binaryImage = hfh.createMask(I);
+        pixelsWithinMask = I(binaryImage);
+        meanImageGL(i,(time)) = mean2(pixelsWithinMask);
+    end
+    disp(time)
+end
